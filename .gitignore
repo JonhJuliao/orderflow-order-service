@@ -1,33 +1,60 @@
 HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
 
-### STS ###
+# ===== Build (Maven/Gradle) =====
+target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ===== Logs =====
+*.log
+
+# ===== JVM crash logs =====
+hs_err_pid*
+replay_pid*
+
+# ===== Maven Wrapper (NÃO ignorar o jar) =====
+!.mvn/wrapper/maven-wrapper.jar
+
+# ===== IntelliJ IDEA =====
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ===== Eclipse / STS =====
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
+# ===== NetBeans =====
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
+# ===== VS Code =====
 .vscode/
+
+# ===== SO =====
+.DS_Store
+Thumbs.db
+
+# ===== Env / Segredos =====
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-dev.yml
+application-dev.yaml
+application-prod.yml
+application-prod.yaml
+
+# ===== Docker (se você criar dados locais) =====
+**/docker-data/
