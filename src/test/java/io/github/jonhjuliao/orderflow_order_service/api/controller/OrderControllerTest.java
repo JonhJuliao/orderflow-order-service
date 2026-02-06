@@ -159,5 +159,15 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.path").value("/orders/uuid-invalido"));
     }
+
+    @Test
+    void deveRetornar400QuandoCustomerIdInvalido() throws Exception {
+        mockMvc.perform(get("/orders")
+                        .param("customerId", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
 }
 
