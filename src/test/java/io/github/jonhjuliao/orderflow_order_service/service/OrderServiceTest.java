@@ -3,6 +3,7 @@ package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.publisher.DomainEventPublisher;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
@@ -29,13 +30,15 @@ class OrderServiceTest {
     private OrderRepository orderRepository;
     private OrderValidator orderValidator;
     private OrderService orderService;
+    private DomainEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
         orderRepository = mock(OrderRepository.class);
         orderValidator = mock(OrderValidator.class);
+        eventPublisher = mock(DomainEventPublisher.class);
 
-        orderService = new OrderService(orderRepository, List.of(orderValidator));
+        orderService = new OrderService(orderRepository, List.of(orderValidator), eventPublisher);
     }
 
     @Test
