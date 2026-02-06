@@ -9,6 +9,10 @@ import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValid
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -94,5 +98,52 @@ class OrderServiceTest {
         verify(orderRepository).findById(orderId);
         verifyNoMoreInteractions(orderRepository);
     }
+
+    @Test
+    void deveListarPedidosSemFiltro() {
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(50));
+        Page<Order> page = new PageImpl<>(List.of(order));
+
+        when(orderRepository.findAll(pageable)).thenReturn(page);
+
+        Page<Order> result = orderService.listOrders(null, pageable);
+
+        assertEquals(1, result.getContent().size());
+        verify(orderRepository).findAll(pageable);
+    }
+
+    @Test
+    void deveListarPedidosPorCustomerId() {
+        UUID customerId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Order order = new Order(customerId, BigDecimal.valueOf(30));
+        Page<Order> page = new PageImpl<>(List.of(order));
+
+        when(orderRepository.findAllByCustomerId(customerId, pageable)).thenReturn(page);
+
+        Page<Order> result = orderService.listOrders(customerId, pageable);
+
+        assertEquals(1, result.getContent().size());
+        verify(orderRepository).findAllByCustomerId(customerId, pageable);
+    }
+
+    @Test
+    void deveRespeitarPaginacao() {
+        Pageable pageable = PageRequest.of(1, 2);
+
+        Page<Order> page = new PageImpl<>(List.of(), pageable, 5);
+
+        when(orderRepository.findAll(pageable)).thenReturn(page);
+
+        Page<Order> result = orderService.listOrders(null, pageable);
+
+        assertEquals(1, result.getNumber());
+        assertEquals(2, result.getSize());
+        verify(orderRepository).findAll(pageable);
+    }
+
 }
 
