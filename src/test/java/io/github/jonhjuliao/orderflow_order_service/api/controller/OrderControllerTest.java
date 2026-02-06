@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
+import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -17,6 +18,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -39,7 +42,7 @@ class OrderControllerTest {
 
         Order created = new Order(customerId, total);
 
-        Mockito.when(orderService.createOrder(any(UUID.class), any(BigDecimal.class)))
+        when(orderService.createOrder(any(UUID.class), any(BigDecimal.class)))
                 .thenReturn(created);
 
         String body = """
@@ -77,7 +80,7 @@ class OrderControllerTest {
     void shouldReturn400WhenBusinessRuleExceptionOccurs() throws Exception {
         UUID customerId = UUID.randomUUID();
 
-        Mockito.when(orderService.createOrder(any(UUID.class), any(BigDecimal.class)))
+        when(orderService.createOrder(any(UUID.class), any(BigDecimal.class)))
                 .thenThrow(new BusinessRuleException("Order total must be greater than zero."));
 
         String body = """
@@ -117,6 +120,44 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.fieldErrors.customerId").exists())
                 .andExpect(jsonPath("$.path").value("/orders"))
                 .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void deveRetornar200QuandoPedidoExistir() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(15.50));
+
+        when(orderService.getOrderById(orderId)).thenReturn(order);
+
+        mockMvc.perform(get("/orders/{orderId}", orderId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value(order.getCustomerId().toString()))
+                .andExpect(jsonPath("$.status").value(order.getStatus().name()))
+                .andExpect(jsonPath("$.total").value(15.50));
+    }
+
+    @Test
+    void deveRetornar404QuandoPedidoNaoExistir() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        when(orderService.getOrderById(orderId)).thenThrow(new OrderNotFoundException(orderId));
+
+        mockMvc.perform(get("/orders/{orderId}", orderId))
+                .andExpect(status().isNotFound())
+                // valida seu formato padronizado (ApiErrorResponse)
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId));
+    }
+
+    @Test
+    void deveRetornar400QuandoUuidForInvalido() throws Exception {
+        mockMvc.perform(get("/orders/{orderId}", "uuid-invalido"))
+                .andExpect(status().isBadRequest())
+                // valida seu formato padronizado (ApiErrorResponse)
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/orders/uuid-invalido"));
     }
 }
 
