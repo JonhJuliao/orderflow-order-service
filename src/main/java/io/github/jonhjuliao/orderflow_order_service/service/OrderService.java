@@ -1,12 +1,15 @@
 package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
+import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
+import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
 import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,5 +46,23 @@ public class OrderService {
         }
         return orderRepository.findAll(pageable);
     }
+
+    @Transactional
+    public Order updateStatus(UUID orderId, OrderStatus newStatus) {
+        Order order = getOrderById(orderId);
+
+        if (order.getStatus() == OrderStatus.CANCELLED ||
+                order.getStatus() == OrderStatus.COMPLETED) {
+            throw new BusinessRuleException("Order cannot change status anymore");
+        }
+
+        if (newStatus == OrderStatus.CREATED) {
+            throw new BusinessRuleException("Invalid status transition");
+        }
+
+        order.setStatus(newStatus);
+        return orderRepository.save(order);
+    }
+
 
 }

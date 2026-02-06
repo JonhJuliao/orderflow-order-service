@@ -59,4 +59,8 @@ public class Order {
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
 }
