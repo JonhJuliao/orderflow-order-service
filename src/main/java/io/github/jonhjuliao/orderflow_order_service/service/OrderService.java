@@ -2,6 +2,9 @@ package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.OrderCreatedEvent;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.OrderStatusUpdatedEvent;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.publisher.DomainEventPublisher;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
@@ -22,9 +25,12 @@ public class OrderService {
 
     private final List<OrderValidator> validators;
 
-    public OrderService(OrderRepository orderRepository, List<OrderValidator> validators) {
+    private final DomainEventPublisher eventPublisher;
+
+    public OrderService(OrderRepository orderRepository, List<OrderValidator> validators, DomainEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.validators = validators;
+        this.eventPublisher = eventPublisher;
     }
 
     public Order createOrder(UUID customerId, BigDecimal total) {
@@ -32,7 +38,9 @@ public class OrderService {
 
         validators.forEach(v -> v.validate(order));
 
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        eventPublisher.publish(new OrderCreatedEvent(saved.getId()));
+        return saved;
     }
 
     public Order getOrderById(UUID orderId) {
@@ -61,7 +69,9 @@ public class OrderService {
         }
 
         order.setStatus(newStatus);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+        eventPublisher.publish(new OrderStatusUpdatedEvent(saved.getId(), newStatus));
+        return saved;
     }
 
 

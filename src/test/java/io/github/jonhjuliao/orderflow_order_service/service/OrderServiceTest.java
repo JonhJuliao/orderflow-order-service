@@ -3,6 +3,10 @@ package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.DomainEvent;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.OrderCreatedEvent;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.OrderStatusUpdatedEvent;
+import io.github.jonhjuliao.orderflow_order_service.domain.event.publisher.DomainEventPublisher;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
@@ -29,13 +33,15 @@ class OrderServiceTest {
     private OrderRepository orderRepository;
     private OrderValidator orderValidator;
     private OrderService orderService;
+    private DomainEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() {
         orderRepository = mock(OrderRepository.class);
         orderValidator = mock(OrderValidator.class);
+        eventPublisher = mock(DomainEventPublisher.class);
 
-        orderService = new OrderService(orderRepository, List.of(orderValidator));
+        orderService = new OrderService(orderRepository, List.of(orderValidator), eventPublisher);
     }
 
     @Test
@@ -54,6 +60,14 @@ class OrderServiceTest {
 
         verify(orderValidator).validate(any(Order.class));
         verify(orderRepository).save(any(Order.class));
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(eventPublisher).publish((DomainEvent) eventCaptor.capture());
+
+        OrderCreatedEvent event = (OrderCreatedEvent) eventCaptor.getValue();
+        assertEquals(order.getId(), event.getOrderId());
+
     }
 
     @Test
@@ -70,6 +84,7 @@ class OrderServiceTest {
         );
 
         verify(orderRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -164,6 +179,14 @@ class OrderServiceTest {
         ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(captor.capture());
         assertEquals(OrderStatus.COMPLETED, captor.getValue().getStatus());
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(eventPublisher).publish((DomainEvent) eventCaptor.capture());
+
+        OrderStatusUpdatedEvent event = (OrderStatusUpdatedEvent) eventCaptor.getValue();
+        assertEquals(order.getId(), event.getOrderId());
+        assertEquals(OrderStatus.COMPLETED, event.getNewStatus());
     }
 
     @Test
@@ -178,6 +201,14 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.CANCELLED, updated.getStatus());
         verify(orderRepository).save(any(Order.class));
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+
+        verify(eventPublisher).publish((DomainEvent) eventCaptor.capture());
+
+        OrderStatusUpdatedEvent event = (OrderStatusUpdatedEvent) eventCaptor.getValue();
+        assertEquals(order.getId(), event.getOrderId());
+        assertEquals(OrderStatus.CANCELLED, event.getNewStatus());
     }
 
     @Test
@@ -192,6 +223,7 @@ class OrderServiceTest {
                 () -> orderService.updateStatus(orderId, OrderStatus.CANCELLED));
 
         verify(orderRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -206,6 +238,7 @@ class OrderServiceTest {
                 () -> orderService.updateStatus(orderId, OrderStatus.COMPLETED));
 
         verify(orderRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -217,6 +250,7 @@ class OrderServiceTest {
                 () -> orderService.updateStatus(orderId, OrderStatus.COMPLETED));
 
         verify(orderRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 }
 
