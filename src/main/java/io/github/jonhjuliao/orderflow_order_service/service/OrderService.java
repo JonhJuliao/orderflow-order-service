@@ -4,6 +4,8 @@ import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
 import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValidator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -33,6 +35,13 @@ public class OrderService {
     public Order getOrderById(UUID orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
+    }
+
+    public Page<Order> listOrders(UUID customerId, Pageable pageable) {
+        if (customerId != null) {
+            return orderRepository.findAllByCustomerId(customerId, pageable);
+        }
+        return orderRepository.findAll(pageable);
     }
 
 }
