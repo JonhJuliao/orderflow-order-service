@@ -1,6 +1,7 @@
 package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
+import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
 import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValidator;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,11 @@ public class OrderService {
         validators.forEach(v -> v.validate(order));
 
         return orderRepository.save(order);
+    }
+
+    public Order getOrderById(UUID orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
     }
 
 }
