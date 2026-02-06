@@ -2,12 +2,14 @@ package io.github.jonhjuliao.orderflow_order_service.service;
 
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
+import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
 import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -145,5 +147,76 @@ class OrderServiceTest {
         verify(orderRepository).findAll(pageable);
     }
 
+    @Test
+    void deveAtualizarStatusParaCompletedQuandoPedidoEstiverCreated() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(100));
+        // por padrão o seu Order inicia CREATED (confirmado na entidade)
+        assertEquals(OrderStatus.CREATED, order.getStatus());
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order updated = orderService.updateStatus(orderId, OrderStatus.COMPLETED);
+
+        assertEquals(OrderStatus.COMPLETED, updated.getStatus());
+
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(captor.capture());
+        assertEquals(OrderStatus.COMPLETED, captor.getValue().getStatus());
+    }
+
+    @Test
+    void deveAtualizarStatusParaCancelledQuandoPedidoEstiverCreated() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(100));
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order updated = orderService.updateStatus(orderId, OrderStatus.CANCELLED);
+
+        assertEquals(OrderStatus.CANCELLED, updated.getStatus());
+        verify(orderRepository).save(any(Order.class));
+    }
+
+    @Test
+    void deveLancarBusinessRuleQuandoPedidoJaEstiverCompleted() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(100));
+        order.setStatus(OrderStatus.COMPLETED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(BusinessRuleException.class,
+                () -> orderService.updateStatus(orderId, OrderStatus.CANCELLED));
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void deveLancarBusinessRuleQuandoPedidoJaEstiverCancelled() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(100));
+        order.setStatus(OrderStatus.CANCELLED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        assertThrows(BusinessRuleException.class,
+                () -> orderService.updateStatus(orderId, OrderStatus.COMPLETED));
+
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRetornar404QuandoPedidoNaoExistir() {
+        UUID orderId = UUID.randomUUID();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        assertThrows(OrderNotFoundException.class,
+                () -> orderService.updateStatus(orderId, OrderStatus.COMPLETED));
+
+        verify(orderRepository, never()).save(any());
+    }
 }
 

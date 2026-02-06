@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
+import io.github.jonhjuliao.orderflow_order_service.domain.enums.OrderStatus;
 import io.github.jonhjuliao.orderflow_order_service.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -18,9 +19,9 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrderController.class)
@@ -137,36 +138,108 @@ class OrderControllerTest {
     }
 
     @Test
-    void deveRetornar404QuandoPedidoNaoExistir() throws Exception {
-        UUID orderId = UUID.randomUUID();
-
-        when(orderService.getOrderById(orderId)).thenThrow(new OrderNotFoundException(orderId));
-
-        mockMvc.perform(get("/orders/{orderId}", orderId))
-                .andExpect(status().isNotFound())
-                // valida seu formato padronizado (ApiErrorResponse)
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.path").value("/orders/" + orderId));
-    }
-
-    @Test
-    void deveRetornar400QuandoUuidForInvalido() throws Exception {
-        mockMvc.perform(get("/orders/{orderId}", "uuid-invalido"))
-                .andExpect(status().isBadRequest())
-                // valida seu formato padronizado (ApiErrorResponse)
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.path").value("/orders/uuid-invalido"));
-    }
-
-    @Test
     void deveRetornar400QuandoCustomerIdInvalido() throws Exception {
         mockMvc.perform(get("/orders")
                         .param("customerId", "abc"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
+    @Test
+    void deveAtualizarStatusParaCompleted() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(100));
+        order.setStatus(OrderStatus.COMPLETED);
+
+        when(orderService.updateStatus(eq(orderId), eq(OrderStatus.COMPLETED))).thenReturn(order);
+
+        mockMvc.perform(patch("/orders/{orderId}/status", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "status": "COMPLETED" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
+
+    @Test
+    void deveRetornar404QuandoPedidoNaoExistir() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        when(orderService.updateStatus(eq(orderId), any()))
+                .thenThrow(new OrderNotFoundException(orderId));
+
+        mockMvc.perform(patch("/orders/{orderId}/status", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "status": "COMPLETED" }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
+    }
+
+    @Test
+    void deveRetornar400QuandoTransicaoForInvalida() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        when(orderService.updateStatus(eq(orderId), any()))
+                .thenThrow(new BusinessRuleException("Order cannot change status anymore"));
+
+        mockMvc.perform(patch("/orders/{orderId}/status", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "status": "CANCELLED" }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
+    }
+
+    @Test
+    void deveRetornar400QuandoUuidForInvalido() throws Exception {
+        mockMvc.perform(patch("/orders/{orderId}/status", "uuid-invalido")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "status": "COMPLETED" }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/orders/uuid-invalido/status"));
+    }
+
+    @Test
+    void deveRetornar400QuandoStatusForInvalido() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/orders/{orderId}/status", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            { "status": "INVALID" }
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
+    }
+
+    @Test
+    void deveRetornar400QuandoBodyNaoTiverStatus() throws Exception {
+        UUID orderId = UUID.randomUUID();
+
+        mockMvc.perform(patch("/orders/{orderId}/status", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.path").value("/orders/" + orderId + "/status"));
     }
 
 }

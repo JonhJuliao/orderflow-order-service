@@ -1,9 +1,6 @@
 package io.github.jonhjuliao.orderflow_order_service.api.controller;
 
-import io.github.jonhjuliao.orderflow_order_service.api.dto.CreateOrderRequest;
-import io.github.jonhjuliao.orderflow_order_service.api.dto.CreateOrderResponse;
-import io.github.jonhjuliao.orderflow_order_service.api.dto.GetOrderResponse;
-import io.github.jonhjuliao.orderflow_order_service.api.dto.OrderSummaryResponse;
+import io.github.jonhjuliao.orderflow_order_service.api.dto.*;
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.service.OrderService;
 import jakarta.validation.Valid;
@@ -46,5 +43,15 @@ public class OrderController {
         return orderService.listOrders(customerId, pageable)
                 .map(OrderSummaryResponse::from);
     }
+
+    @PatchMapping("/{orderId}/status")
+    public GetOrderResponse updateStatus(
+            @PathVariable UUID orderId,
+            @RequestBody @Valid UpdateOrderStatusRequest request
+    ) {
+        Order order = orderService.updateStatus(orderId, request.getStatus());
+        return GetOrderResponse.from(order);
+    }
+
 
 }
