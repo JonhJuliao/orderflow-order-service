@@ -3,6 +3,7 @@ package io.github.jonhjuliao.orderflow_order_service.service;
 
 import io.github.jonhjuliao.orderflow_order_service.domain.entity.Order;
 import io.github.jonhjuliao.orderflow_order_service.domain.exception.BusinessRuleException;
+import io.github.jonhjuliao.orderflow_order_service.domain.exception.OrderNotFoundException;
 import io.github.jonhjuliao.orderflow_order_service.domain.repository.OrderRepository;
 import io.github.jonhjuliao.orderflow_order_service.domain.validation.OrderValidator;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.mockito.Mockito;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -62,6 +64,35 @@ class OrderServiceTest {
         );
 
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void deveRetornarPedidoQuandoExistir() {
+        UUID orderId = UUID.randomUUID();
+        Order order = new Order(UUID.randomUUID(), BigDecimal.valueOf(10.00));
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        Order result = orderService.getOrderById(orderId);
+
+        assertNotNull(result);
+        assertEquals(order.getCustomerId(), result.getCustomerId());
+        assertEquals(order.getStatus(), result.getStatus());
+        assertEquals(order.getTotal(), result.getTotal());
+
+        verify(orderRepository).findById(orderId);
+    }
+
+    @Test
+    void deveLancarExcecaoQuandoPedidoNaoExistir() {
+        UUID orderId = UUID.randomUUID();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.getOrderById(orderId));
+
+        verify(orderRepository).findById(orderId);
+        verifyNoMoreInteractions(orderRepository);
     }
 }
 
