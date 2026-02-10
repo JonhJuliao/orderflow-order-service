@@ -35,51 +35,62 @@ Construir um microserviço de pedidos seguindo práticas utilizadas por **times 
 - JUnit 5  
 - Mockito  
 - MockMvc  
+- Apache Kafka
+- GitHub Actions
 
 ---
 
-## Estrutura do Projeto
+## Arquitetura
 
-O projeto é organizado em camadas bem definidas (api, domain e 
-service), separando responsabilidades de entrada, regras 
-de negócio e domínio.
+A aplicação segue uma organização em camadas:
 
----
+- **api** → controllers e entrada HTTP
+- **service** → orquestração e casos de uso
+- **domain** → modelo de domínio e regras
+- **messaging** → integração com Kafka
 
-## Decisões de Arquitetura
-
-### Separação de Camadas
-
-A aplicação segue uma divisão clara de responsabilidades:
-
-- **Controller**: comunicação HTTP e validação de entrada  
-- **Service**: regras de negócio e orquestração  
-- **Domain / Repository**: modelo de domínio e persistência  
+O domínio permanece desacoplado de detalhes de infraestrutura.
 
 ---
 
-### Validação em Camadas
+## Eventos de Domínio
 
-- **API**: valida formato e restrições básicas  
-- **Domínio**: garante regras de negócio e consistência  
+O serviço publica eventos quando fatos relevantes acontecem:
+
+- `OrderCreatedEvent`
+- `OrderStatusUpdatedEvent`
+
+Esses eventos são emitidos pelo domínio e tratados internamente via **Application Events** do Spring.
 
 ---
 
-### Princípios SOLID
+## Integração Assíncrona (Kafka)
 
-- **SRP**: cada classe possui uma responsabilidade  
-- **OCP**: regras de negócio extensíveis sem modificar fluxo principal  
-- **DIP**: dependência de abstrações  
+Os eventos de domínio são traduzidos em eventos de integração e publicados em tópicos Kafka:
+
+- `order.created`
+- `order.status-updated`
+
+A publicação é feita por meio de:
+
+- Listener de eventos do Spring
+- Producer Kafka isolado da camada de negócio
+- Tópicos externalizados em configuração
+
+Isso permite que outros serviços reajam aos eventos sem acoplamento direto ao serviço de pedidos.
 
 ---
 
 ## Testes Automatizados
 
-- Testes de Controller (MockMvc)  
-- Testes de Service (JUnit + Mockito)  
-- Testes de contexto  
+O projeto possui testes em múltiplos níveis:
 
-Executados automaticamente via **GitHub Actions**.
+- Controller (MockMvc)
+- Service (JUnit + Mockito)
+- Listener Kafka
+- Contexto da aplicação
+
+Executados automaticamente via GitHub Actions.
 
 ---
 
@@ -111,11 +122,23 @@ Aplicação disponível em: http://localhost:8080
 
 ### Criar Pedido
 
-POST /orders
+- POST /orders
+  - Campos:
+    - customerId (UUID)
+    - total (BigDecimal)
 
-Campos:
-- customerId (UUID)
-- total (BigDecimal)
+### Buscar pedido por ID
+- GET /orders/{id}
+
+
+### Listar pedidos (paginado)
+- GET /orders (paginação)
+
+
+### Atualizar status do pedido
+- PATCH /orders/{id}/status
+  - Campos:
+    - status: CREATED | CANCELLED | COMPLETED
 
 ---
 
@@ -128,13 +151,16 @@ Handler global com respostas padronizadas para:
 
 ---
 
-## Próximos Passos
+## Evolução planejada
 
-- Consulta de pedidos  
-- Evolução de regras de negócio  
-- Mensageria  
-- Aumento de cobertura de testes  
-- OpenAPI  
+Este serviço faz parte de um ecossistema em construção.
+
+Próximos passos:
+
+- Criação de um segundo microserviço consumidor Kafka
+- Integração entre serviços via eventos
+- Observabilidade e logs estruturados
+- Evolução das regras de negócio
 
 ---
 
