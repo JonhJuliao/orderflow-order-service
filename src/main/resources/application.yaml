@@ -25,3 +25,10 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+orderflow:
+  messaging:
+    kafka:
+      topics:
+        order-created: order.created
+        order-status-updated: order.status-updated
